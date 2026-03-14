@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>毛白杨人工林生长模拟器</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 标题栏 -->
+  <div style="background:#f0f0ec;border-radius:8px;padding:10px 14px;margin-bottom:1rem;">
+    <p style="font-size:12px;font-weight:500;margin:0 0 3px;">毛白杨人工林生长模拟器（姜岳忠2006博士论文参数）</p>
+    <p style="font-size:10px;color:#888;margin:0;line-height:1.7;">
+      生长模型：Logistic（速生期）+ 线性慢速生长（后期），参数来自表4-2-5 | 速生期标注：表4-2-6 | 树冠形态：表4-4-7（枝角77°，层距1.7m，冠高比0.20）
+    </p>
+  </div>
+
+  <!-- 品种与立地 -->
+  <p class="sec" style="margin-top:0;">品种与立地</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;">
+    <div>
+      <div class="cr">
+        <span class="cl">品种</span>
+        <select id="variety" style="flex:1;font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;">
+          <option value="0">易县毛白杨</option>
+          <option value="1">鲁毛50</option>
+          <option value="2">细皮毛白杨</option>
+          <option value="3">南×毛新</option>
+        </select>
+      </div>
+      <div class="cr">
+        <span class="cl">立地指数 SI (m,20yr)</span>
+        <input type="range" min="8" max="20" step="2" value="16" id="SI" style="flex:1;">
+        <span class="cv" id="oSI">16</span>
+      </div>
+      <div class="cr">
+        <span class="cl">初植密度 (株/ha)</span>
+        <input type="range" min="300" max="2500" step="100" value="833" id="N0" style="flex:1;">
+        <span class="cv" id="oN0">833</span>
+      </div>
+    </div>
+    <div>
+      <div class="cr">
+        <span class="cl">轮伐期 (yr)</span>
+        <input type="range" min="12" max="30" step="1" value="20" id="rot" style="flex:1;">
+        <span class="cv" id="oRot">20</span>
+      </div>
+      <div class="cr">
+        <span class="cl">播放速度 (ms)</span>
+        <input type="range" min="200" max="1400" step="100" value="700" id="spd" style="flex:1;">
+        <span class="cv" id="oSpd">700</span>
+      </div>
+      <div id="varInfo" style="margin-top:2px;"></div>
+    </div>
+  </div>
+
+  <!-- 间伐方案 -->
+  <p class="sec">间伐方案</p>
+  <div id="thinList"></div>
+  <button id="addThin" style="font-size:12px;padding:4px 13px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;margin-bottom:2px;">+ 添加间伐</button>
+
+  <!-- 林分动态 -->
+  <p class="sec">林分动态</p>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;">
+    <button id="btnPl"    style="font-size:12px;padding:4px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;min-width:62px;">Play</button>
+    <button id="btnReset" style="font-size:12px;padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;">Reset</button>
+    <input type="range" min="1" max="20" step="1" value="1" id="yrSl" style="flex:1;">
+    <span style="font-size:13px;font-weight:500;min-width:60px;">Year <span id="yrLb">1</span></span>
+  </div>
+
+  <!-- 等轴测视图 + 标准木面板 -->
+  <div style="display:flex;gap:8px;align-items:flex-start;">
+    <div style="flex:1;min-width:0;">
+      <canvas id="cvS" style="display:block;width:100%;border:1px solid #ddd;border-radius:8px;background:#fff;"></canvas>
+    </div>
+    <div style="width:140px;flex-shrink:0;">
+      <canvas id="cvT" style="display:block;width:140px;height:300px;border:1px solid #ddd;border-radius:8px 8px 0 0;background:#f8f8f6;"></canvas>
+      <div style="border:1px solid #ddd;border-top:none;border-radius:0 0 8px 8px;padding:6px 8px 8px;">
+        <p style="font-size:11px;font-weight:500;color:#666;margin:0 0 2px;">平均标准木</p>
+        <p id="tSt" style="font-size:11px;color:#999;margin:0;white-space:pre-line;">—</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 指标卡片行 -->
+  <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin-top:9px;" id="mRow"></div>
+
+  <!-- 生长曲线 -->
+  <p class="sec">生长曲线</p>
+  <div id="chartTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px;">
+    <button class="gtab on" data-vkey="vol">蓄积量</button>
+    <button class="gtab"    data-vkey="dbh">胸径</button>
+    <button class="gtab"    data-vkey="h">树高</button>
+    <button class="gtab"    data-vkey="ba">断面积</button>
+    <button class="gtab"    data-vkey="mai">MAI</button>
+  </div>
+  <div style="display:flex;gap:12px;margin-bottom:5px;font-size:12px;color:#666;">
+    <span>— 无间伐 &nbsp; — 当前方案 &nbsp; | 当前年</span>
+  </div>
+  <div style="position:relative;width:100%;height:200px;">
+    <canvas id="chC"></canvas>
+  </div>
+
+</div>
+
+<!-- Chart.js（全局脚本，须在 ES module 之前加载）-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<!-- 应用入口（ES module） -->
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

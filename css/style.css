@@ -1,0 +1,28 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: sans-serif; background: #f5f4f0; padding: 1rem; }
+
+/* Control row */
+.cr { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cl { font-size: 12px; color: #666; width: 130px; flex-shrink: 0; }
+.cv { font-size: 13px; font-weight: 500; min-width: 44px; text-align: right; }
+
+/* Metric cards */
+.mc { background: #eee; border-radius: 8px; padding: 8px 11px; }
+.ml { font-size: 11px; color: #666; margin: 0 0 1px; }
+.mv { font-size: 15px; font-weight: 500; margin: 0; }
+
+/* Section heading */
+.sec { font-size: 13px; font-weight: 500; color: #666; margin: 1rem 0 0.4rem; }
+
+/* Thinning card */
+.tcard { border: 1px solid #ddd; border-radius: 8px; padding: 9px 11px; margin-bottom: 8px; background: #fff; }
+.mbtns { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+.mb { font-size: 11px; padding: 3px 8px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; background: #fff; }
+.mb.on { background: #e8f0fe; color: #1a73e8; border-color: #1a73e8; }
+
+/* Chart tabs */
+.gtab { font-size: 12px; padding: 4px 10px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; background: #fff; }
+.gtab.on { background: #e8f0fe; color: #1a73e8; }
+
+/* Page wrapper */
+.wrap { max-width: 900px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 1.5rem; }
