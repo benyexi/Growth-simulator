@@ -328,8 +328,7 @@ function delEv(idx) {
 
 function updEvYr(idx, val) {
   S.sched[idx].yr = Math.max(1, Math.min(S.rotLen - 1, parseInt(val) || 1));
-  S.tSets = mkThinSets(S.sched);
-  goTo(S.curYr);
+  rebuild();
 }
 
 // ── 事件代理：间伐卡片区域 ────────────────────────────────────────
@@ -350,9 +349,7 @@ function bindThinListDelegate() {
       const i  = +mode.dataset.evIdx;
       const mi = +mode.dataset.modeIdx;
       S.sched[i].mode = mi;
-      S.tSets = mkThinSets(S.sched);
-      renderThinUI();
-      goTo(S.curYr);
+      rebuild();
     }
   });
 }
