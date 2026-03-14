@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>毛白杨人工林生长模拟器</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:sans-serif;background:#f5f4f0;padding:1rem;}
+.cr{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.cl{font-size:12px;color:#666;width:130px;flex-shrink:0;}
+.cv{font-size:13px;font-weight:500;min-width:44px;text-align:right;}
+.mc{background:#eee;border-radius:8px;padding:8px 11px;}
+.ml{font-size:11px;color:#666;margin:0 0 1px;}
+.mv{font-size:15px;font-weight:500;margin:0;}
+.sec{font-size:13px;font-weight:500;color:#666;margin:1rem 0 0.4rem;}
+.tcard{border:1px solid #ddd;border-radius:8px;padding:9px 11px;margin-bottom:8px;background:#fff;}
+.mbtns{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;}
+.mb{font-size:11px;padding:3px 8px;border:1px solid #ddd;border-radius:4px;cursor:pointer;background:#fff;}
+.mb.on{background:#e8f0fe;color:#1a73e8;border-color:#1a73e8;}
+.gtab{font-size:12px;padding:4px 10px;border:1px solid #ddd;border-radius:5px;cursor:pointer;background:#fff;}
+.gtab.on{background:#e8f0fe;color:#1a73e8;}
+.wrap{max-width:900px;margin:0 auto;background:#fff;border-radius:12px;padding:1.5rem;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div style="background:#f0f0ec;border-radius:8px;padding:10px 14px;margin-bottom:1rem;">
+  <p style="font-size:12px;font-weight:500;margin:0 0 3px;">毛白杨人工林生长模拟器（姜岳忠2006博士论文参数）</p>
+  <p style="font-size:10px;color:#888;margin:0;line-height:1.7;">
+    生长模型：Logistic（速生期）+ 线性慢速生长（后期），参数来自表4-2-5 | 速生期标注：表4-2-6 | 树冠形态：表4-4-7（枝角77°，层距1.7m，冠高比0.20）
+  </p>
+</div>
+
+<p class="sec" style="margin-top:0;">品种与立地</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;">
+  <div>
+    <div class="cr">
+      <span class="cl">品种</span>
+      <select id="variety" style="flex:1;font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;" onchange="rebuild()">
+        <option value="0">易县毛白杨</option>
+        <option value="1">鲁毛50</option>
+        <option value="2">细皮毛白杨</option>
+        <option value="3">南×毛新</option>
+      </select>
+    </div>
+    <div class="cr"><span class="cl">立地指数 SI (m,20yr)</span><input type="range" min="8" max="20" step="2" value="16" id="SI" style="flex:1;" oninput="rebuild()"><span class="cv" id="oSI">16</span></div>
+    <div class="cr"><span class="cl">初植密度 (株/ha)</span><input type="range" min="300" max="2500" step="100" value="833" id="N0" style="flex:1;" oninput="rebuild()"><span class="cv" id="oN0">833</span></div>
+  </div>
+  <div>
+    <div class="cr"><span class="cl">轮伐期 (yr)</span><input type="range" min="12" max="30" step="1" value="20" id="rot" style="flex:1;" oninput="rebuild()"><span class="cv" id="oRot">20</span></div>
+    <div class="cr"><span class="cl">播放速度 (ms)</span><input type="range" min="200" max="1400" step="100" value="700" id="spd" style="flex:1;" oninput="updSpd()"><span class="cv" id="oSpd">700</span></div>
+    <div id="varInfo" style="margin-top:2px;"></div>
+  </div>
+</div>
+
+<p class="sec">间伐方案</p>
+<div id="thinList"></div>
+<button onclick="addThin()" style="font-size:12px;padding:4px 13px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;margin-bottom:2px;">+ 添加间伐</button>
+
+<p class="sec">林分动态</p>
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;">
+  <button id="btnPl" onclick="togglePl()" style="font-size:12px;padding:4px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;min-width:62px;">Play</button>
+  <button onclick="goTo(1)" style="font-size:12px;padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;">Reset</button>
+  <input type="range" min="1" max="20" step="1" value="1" id="yrSl" style="flex:1;" oninput="onSl()">
+  <span style="font-size:13px;font-weight:500;min-width:60px;">Year <span id="yrLb">1</span></span>
+</div>
+
+<div style="display:flex;gap:8px;align-items:flex-start;">
+  <div style="flex:1;min-width:0;">
+    <canvas id="cvS" style="display:block;width:100%;border:1px solid #ddd;border-radius:8px;background:#fff;"></canvas>
+  </div>
+  <div style="width:140px;flex-shrink:0;">
+    <canvas id="cvT" style="display:block;width:140px;height:300px;border:1px solid #ddd;border-radius:8px 8px 0 0;background:#f8f8f6;"></canvas>
+    <div style="border:1px solid #ddd;border-top:none;border-radius:0 0 8px 8px;padding:6px 8px 8px;">
+      <p style="font-size:11px;font-weight:500;color:#666;margin:0 0 2px;">平均标准木</p>
+      <p id="tSt" style="font-size:11px;color:#999;margin:0;white-space:pre-line;">—</p>
+    </div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin-top:9px;" id="mRow"></div>
+
+<p class="sec">生长曲线</p>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px;">
+  <button class="gtab on" id="gVol" onclick="setVK('vol')">蓄积量</button>
+  <button class="gtab" id="gDbh" onclick="setVK('dbh')">胸径</button>
+  <button class="gtab" id="gH"   onclick="setVK('h')">树高</button>
+  <button class="gtab" id="gBa"  onclick="setVK('ba')">断面积</button>
+  <button class="gtab" id="gMai" onclick="setVK('mai')">MAI</button>
+</div>
+<div style="display:flex;gap:12px;margin-bottom:5px;font-size:12px;color:#666;">
+  <span>— 无间伐 &nbsp; — 当前方案 &nbsp; | 当前年</span>
+</div>
+<div style="position:relative;width:100%;height:200px;"><canvas id="chC"></canvas></div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const NR=12,NC=12;
+let tmr=null,running=false,curYr=1,rotLen=20;
+let simT=[],sim0=[],grd=[],lch=null,vKey='vol',tSets=[];
+let sched=[{yr:6,mode:0}];
+const SI_BASE=16, N_REF=833;
+
+// ── 论文表4-2-5 实测 Logistic 参数 ──────────────────────────────
+// y = K / (1 + exp(a - b*t))
+const VARIETIES=[
+  {name:'易县毛白杨',H:{a:1.48,b:0.37,K:21.95},D:{a:1.73,b:0.56,K:22.76},V:{a:3.64,b:0.53,K:0.43},
+   fgp:{D:{t1:0.7,t2:5.4},H:{t1:0.5,t2:7.6},V:{t1:4.4,t2:9.3}}},
+  {name:'鲁毛50',    H:{a:1.58,b:0.32,K:22.09},D:{a:1.68,b:0.50,K:22.81},V:{a:3.83,b:0.50,K:0.41},
+   fgp:{D:{t1:0.7,t2:6.0},H:{t1:0.8,t2:8.9},V:{t1:5.0,t2:10.2}}},
+  {name:'细皮毛白杨',H:{a:1.58,b:0.33,K:21.70},D:{a:1.74,b:0.50,K:22.28},V:{a:3.92,b:0.51,K:0.39},
+   fgp:{D:{t1:0.8,t2:6.1},H:{t1:0.8,t2:8.7},V:{t1:5.0,t2:10.1}}},
+  {name:'南×毛新',  H:{a:1.50,b:0.37,K:21.94},D:{a:1.95,b:0.50,K:25.88},V:{a:4.29,b:0.62,K:0.41},
+   fgp:{D:{t1:1.3,t2:6.5},H:{t1:0.5,t2:7.5},V:{t1:4.8,t2:9.0}}},
+];
+
+// 后期慢速生长率（Logistic渐近后持续增量）
+const SLOW_D=0.40; // cm/yr 胸径
+const SLOW_H=0.25; // m/yr  树高
+
+function getVar(){return VARIETIES[+document.getElementById('variety').value];}
+
+function growthD(t,p,siScale,densCorr,slowRate){
+  const tInfl=p.a/p.b;
+  const logVal=p.K*siScale/(1+Math.exp(p.a-p.b*t));
+  const linearExtra=Math.max(0,t-tInfl)*slowRate*densCorr;
+  return (logVal+linearExtra)*densCorr;
+}
+function growthH(t,p,siScale,slowRate){
+  const tInfl=p.a/p.b;
+  const logVal=p.K*siScale/(1+Math.exp(p.a-p.b*t));
+  const linearExtra=Math.max(0,t-tInfl)*slowRate;
+  return logVal+linearExtra;
+}
+
+const MODES=[
+  {lb:'隔行（奇数行）',sh:'隔行↕奇',f:.50,fn:(r,c)=>r%2===1},
+  {lb:'隔行（偶数行）',sh:'隔行↕偶',f:.50,fn:(r,c)=>r%2===0},
+  {lb:'隔株（行内）',  sh:'隔株→',  f:.50,fn:(r,c)=>c%2===1},
+  {lb:'棋盘式',        sh:'棋盘⊞',  f:.50,fn:(r,c)=>(r+c)%2===1},
+  {lb:'三去一',        sh:'三去一',  f:.333,fn:(r,c)=>r%3===2},
+  {lb:'四去一',        sh:'四去一',  f:.25, fn:(r,c)=>r%4===3},
+];
+
+function mkThinSets(){
+  let alive=new Set();
+  for(let r=0;r<NR;r++) for(let c=0;c<NC;c++) alive.add(r*NC+c);
+  tSets=[];
+  for(const ev of sched){
+    const s=new Set();
+    for(const id of alive){if(MODES[ev.mode].fn(Math.floor(id/NC),id%NC))s.add(id);}
+    tSets.push(s); for(const id of s) alive.delete(id);
+  }
+}
+
+function getStates(yr){
+  const m=new Map();
+  for(let r=0;r<NR;r++) for(let c=0;c<NC;c++) m.set(r*NC+c,'live');
+  for(let i=0;i<sched.length;i++){
+    const s=tSets[i]||new Set();
+    if(yr>sched[i].yr) for(const id of s) m.set(id,'stump');
+    else if(yr===sched[i].yr) for(const id of s) m.set(id,'cut');
+  }
+  return m;
+}
+
+function prng(seed){let x=seed>>>0;return()=>{x=(Math.imul(1664525,x)+1013904223)>>>0;return x/4294967295;};}
+function vStem(D,H){return 5.84e-5*Math.pow(D,1.952)*Math.pow(H,0.876);}
+
+function runSim(N0,SI,sc,rot){
+  const vr=getVar();
+  const siScale=SI/SI_BASE;
+  let N=N0,rl=0,prevD=0;
+  const res=[];
+  for(let t=1;t<=rot;t++){
+    const densCorr=Math.pow(N_REF/Math.max(N,100),0.28);
+    let H=growthH(t,vr.H,siScale,SLOW_H);
+    let D=growthD(t,vr.D,siScale,densCorr,SLOW_D);
+    if(rl>0){D=prevD+Math.max(0,D-prevD)*(1+0.20*(rl/2));rl--;}
+    if(sc){const ev=sc.find(e=>e.yr===t);if(ev){N=Math.max(1,Math.round(N*(1-MODES[ev.mode].f)));rl=2;}}
+    const BA=N*Math.PI/4*(D/100)**2;
+    const vi=vStem(D,H);
+    const Vol=N*vi;
+    res.push({t,N:Math.round(N),dbh:+D.toFixed(1),h:+H.toFixed(1),ba:+BA.toFixed(2),vol:+Vol.toFixed(1),mai:+(Vol/t).toFixed(2),vi});
+    prevD=D;
+  }
+  return res;
+}
+
+function mkGrid(){
+  const r=prng(77),g=[];
+  for(let row=0;row<NR;row++) for(let col=0;col<NC;col++)
+    g.push({row,col,jx:(r()-.5)*.14,jy:(r()-.5)*.14,sv:.86+r()*.28,id:row*NC+col});
+  return g;
+}
+
+// 等轴测树形 — 基于论文表4-4-7（枝角77°，层距1.7m，冠高比0.20）
+function isoTree(ctx,x,gy,tH,tileW,state,dbhFrac){
+  if(state==='stump'){
+    const sw=Math.max(2,tileW*.16),sh=Math.max(3,tH*.07);
+    ctx.fillStyle='#9e7a50';ctx.fillRect(x-sw/2,gy-sh,sw,sh);
+    ctx.strokeStyle='rgba(55,35,18,.28)';ctx.lineWidth=.5;
+    ctx.beginPath();ctx.ellipse(x,gy-sh,sw*.76,sw*.28,0,0,Math.PI*2);ctx.stroke();
+    return;
+  }
+  const dy=state==='cut';
+  const tw=Math.max(1.5,tH*.020);
+  ctx.fillStyle=dy?'#c0a870':'#e0dace';
+  ctx.fillRect(x-tw/2,gy-tH,tw,tH);
+  if(!dy&&tH>10){
+    ctx.strokeStyle='rgba(85,68,42,.14)';ctx.lineWidth=.38;
+    const nl=Math.max(2,Math.floor(tH/9));
+    for(let i=1;i<=nl;i++){const ly=gy-tH*i/(nl+1);ctx.beginPath();ctx.moveTo(x-tw*.3,ly);ctx.lineTo(x+tw*.3,ly);ctx.stroke();}
+  }
+  const crownHalfW=Math.min(tileW*1.35,tH*0.21)*Math.max(0.12,dbhFrac);
+  const ctop=gy-tH*.96,cbot=gy-tH*.20,cHpx=cbot-ctop;
+  const nb=Math.max(4,Math.min(14,Math.round(cHpx/(tH/Math.max(7,cHpx/3.5)))));
+  const ls=cHpx/(nb-1);
+  for(let b=0;b<nb;b++){
+    const fr=b/(nb-1),by=ctop+cHpx*fr;
+    const wp=fr<.35?.18+(fr/.35)*.82:1-((fr-.35)/.65)*.50;
+    const rx=crownHalfW*wp;
+    const ry=Math.max(ls*.48,rx*.13);
+    const gv=dy?110+Math.round(fr*14):78+Math.round(fr*46);
+    const rv=dy?100+Math.round(fr*18):17+Math.round(fr*32);
+    ctx.fillStyle=`rgba(${rv},${gv},${7+Math.round(fr*4)},.92)`;
+    ctx.beginPath();ctx.ellipse(x,by,rx,ry,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=`rgba(${rv-6},${gv-20},5,.20)`;ctx.lineWidth=.3;ctx.stroke();
+    if(!dy&&rx>4){
+      ctx.strokeStyle=`rgba(${62+Math.round(fr*18)},${48+Math.round(fr*12)},${30+Math.round(fr*8)},.28)`;
+      ctx.lineWidth=Math.max(.4,tw*.11);
+      ctx.beginPath();ctx.moveTo(x,by);ctx.lineTo(x-rx*.86,by+rx*.05);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x,by);ctx.lineTo(x+rx*.86,by+rx*.05);ctx.stroke();
+    }
+  }
+}
+
+function detailTree(ctx,x,gy,tH,dbhFrac){
+  const crownHalfW=tH*0.21*Math.max(0.12,dbhFrac);
+  const tw=Math.max(4,tH*.022);
+  ctx.fillStyle='#e2ddd0';ctx.fillRect(x-tw/2,gy-tH,tw,tH);
+  ctx.strokeStyle='rgba(85,65,40,.15)';ctx.lineWidth=.65;
+  for(let i=1;i<=Math.floor(tH/14);i++){const y=gy-tH*i/(Math.floor(tH/14)+1),lw=tw*(.22+Math.random()*.24);ctx.beginPath();ctx.moveTo(x-lw,y);ctx.lineTo(x+lw,y);ctx.stroke();}
+  const ctop=gy-tH*.95,cbot=gy-tH*.18,cH=cbot-ctop;
+  const nb=Math.max(5,Math.min(14,Math.round(tH/16)));
+  const ls=cH/(nb-1);
+  for(let b=0;b<nb;b++){
+    const fr=b/(nb-1),by=ctop+cH*fr;
+    const wp=fr<.35?.16+(fr/.35)*.84:1-((fr-.35)/.65)*.52;
+    const rx=crownHalfW*wp,ry=Math.max(ls*.46,rx*.12);
+    ctx.strokeStyle=`rgba(${60+Math.round(fr*22)},${46+Math.round(fr*14)},${30+Math.round(fr*8)},.30)`;
+    ctx.lineWidth=Math.max(.6,tw*.11*(1-fr*.2));
+    const bl=rx*.84;
+    ctx.beginPath();ctx.moveTo(x,by);ctx.lineTo(x-bl,by+bl*.10);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x,by);ctx.lineTo(x+bl,by+bl*.10);ctx.stroke();
+    const gv=84+Math.round(fr*44),rv=18+Math.round(fr*30);
+    ctx.fillStyle=`rgba(${rv},${gv},${10+Math.round(fr*6)},.90)`;
+    ctx.beginPath();ctx.ellipse(x,by,rx,ry,0,0,Math.PI*2);ctx.fill();
+    const nlf=Math.round(rx/9);
+    for(let li=0;li<nlf;li++){
+      const lx=x+(Math.random()-.5)*rx*1.18,ly=by+(Math.random()-.5)*ry*1.1;
+      if((lx-x)**2/rx**2+(ly-by)**2/ry**2>.88) continue;
+      ctx.fillStyle=`rgba(${rv-4},${gv-14},8,.34)`;
+      ctx.beginPath();ctx.ellipse(lx,ly,rx*.09,rx*.05,Math.random()*Math.PI,0,Math.PI*2);ctx.fill();
+    }
+    ctx.strokeStyle=`rgba(${rv+14},${gv+10},12,.15)`;ctx.lineWidth=.28;ctx.beginPath();ctx.ellipse(x,by,rx,ry,0,0,Math.PI*2);ctx.stroke();
+  }
+}
+
+function drawMeanTree(data){
+  const cv=document.getElementById('cvT'),W=140,H=300,ctx=cv.getContext('2d');
+  cv.width=W;cv.height=H;
+  ctx.fillStyle='#f7f6f2';ctx.fillRect(0,0,W,H);
+  const vr=getVar(),SI=+document.getElementById('SI').value;
+  const siScale=SI/SI_BASE;
+  const maxH=growthH(rotLen,vr.H,siScale,SLOW_H)*1.02;
+  const ppm=(H*.78)/Math.max(maxH,1),tH=Math.max(10,data.h*ppm);
+  const gy=H-14,xc=W/2-10,bx=W-11;
+  const dbhFrac=Math.min(1,data.dbh/(vr.D.K*siScale*1.2));
+  ctx.strokeStyle='rgba(100,100,100,.18)';ctx.lineWidth=.7;ctx.setLineDash([2,3]);
+  ctx.beginPath();ctx.moveTo(bx,gy-tH);ctx.lineTo(bx,gy);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='rgba(55,55,55,.55)';ctx.font='9px sans-serif';ctx.textAlign='right';
+  for(let i=0;i<=4;i++){
+    const fr=i/4,y=gy-tH*fr;
+    ctx.strokeStyle='rgba(100,100,100,.25)';ctx.lineWidth=.45;ctx.beginPath();ctx.moveTo(bx-3,y);ctx.lineTo(bx+3,y);ctx.stroke();
+    ctx.fillText((data.h*fr).toFixed(0)+'m',bx-3,y+3);
+  }
+  ctx.textAlign='left';
+  detailTree(ctx,xc,gy,tH,dbhFrac);
+  const bhy=gy-1.3*ppm,tw2=Math.max(2.5,tH*.022);
+  ctx.strokeStyle='rgba(182,40,12,.62)';ctx.lineWidth=1.1;ctx.setLineDash([3,2]);
+  ctx.beginPath();ctx.moveTo(xc-tw2*3,bhy);ctx.lineTo(xc+tw2*3,bhy);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='rgba(170,34,10,.76)';ctx.font='bold 9px sans-serif';
+  ctx.fillText('DBH',xc+tw2*3+2,bhy+3);
+  ctx.fillStyle='rgba(34,34,34,.55)';ctx.font='500 10px sans-serif';ctx.textAlign='center';
+  ctx.fillText('Year '+data.t,W/2,11);ctx.textAlign='left';
+  document.getElementById('tSt').textContent='H̄ '+data.h.toFixed(1)+' m\nD̄ '+data.dbh.toFixed(1)+' cm\nV̄ '+(data.vi*1000).toFixed(1)+' dm³';
+}
+
+function drawStand(yr){
+  const cvEl=document.getElementById('cvS');
+  const W=cvEl.parentElement.clientWidth||520,H=Math.round(W*.72);
+  cvEl.width=W;cvEl.height=H;
+  const ctx=cvEl.getContext('2d');
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
+  const data=simT[yr-1]||simT[simT.length-1];
+  const states=getStates(yr);
+  const vr=getVar(),SI=+document.getElementById('SI').value;
+  const siScale=SI/SI_BASE;
+  const dbhMax=vr.D.K*siScale+SLOW_D*(rotLen-vr.D.a/vr.D.b);
+  const dbhFrac=Math.min(1,Math.max(0.08,data.dbh/dbhMax));
+  const LH=46,mg=.04,avW=W*(1-2*mg),avH=H-LH-H*mg;
+  const tW=Math.min(avW/(NR+NC),avH/((NR+NC)*.5)),tH=tW*.5;
+  const ox=W/2,oy=LH+(avH-(NR+NC)*tH)/2;
+  function ip(c,r){return{x:ox+(c-r)*tW,y:oy+(c+r)*tH};}
+  for(let r=0;r<NR;r++) for(let c=0;c<NC;c++){
+    const{x,y}=ip(c,r);
+    ctx.fillStyle=(r+c)%2===0?'#D4A843':'#C49020';
+    ctx.beginPath();ctx.moveTo(x,y-tH);ctx.lineTo(x+tW,y);ctx.lineTo(x,y+tH);ctx.lineTo(x-tW,y);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,.018)';ctx.lineWidth=.4;ctx.stroke();
+  }
+  const hf=Math.min(1,data.h/28),baseTH=tH*.55+(tH*5.0-tH*.55)*hf;
+  const sorted=[...grd].sort((a,b)=>(a.row+a.col)-(b.row+b.col));
+  for(const t of sorted){
+    const{row:r,col:c,jx,jy,sv,id}=t,st=states.get(id)||'live';
+    const{x,y}=ip(c+jx,r+jy),gy=y+tH*.04,ps=.48+(r+c)/((NR+NC-2))*.52;
+    isoTree(ctx,x,gy,baseTH*sv*ps,tW*sv*ps,st,dbhFrac);
+  }
+  ctx.fillStyle='rgba(20,20,20,.68)';ctx.font=`500 ${Math.round(W*.016)}px sans-serif`;
+  const pe=sched.filter(e=>yr>=e.yr).map((e,i)=>`T${i+1}(Yr${e.yr})`).join(' ');
+  const lb=`${getVar().name}人工林  Year ${yr}${pe?' — '+pe:''}`;
+  ctx.fillText(lb,W/2-ctx.measureText(lb).width/2,18);
+  const ne=sched.filter(e=>e.yr===yr);
+  if(ne.length){
+    ctx.fillStyle='rgba(165,30,10,.78)';ctx.font=`500 ${Math.round(W*.013)}px sans-serif`;
+    const m=`第${sched.indexOf(ne[0])+1}次间伐 — ${MODES[ne[0].mode].lb}（${Math.round(MODES[ne[0].mode].f*100)}%）`;
+    ctx.fillText(m,W/2-ctx.measureText(m).width/2,33);
+  }
+  drawMeanTree(data);
+}
+
+function drawChart(){
+  const vr=getVar();
+  const ax={vol:'蓄积量 m³/ha',dbh:'胸径 cm',h:'树高 m',ba:'断面积 m²/ha',mai:'MAI m³/ha/yr'};
+  const labels=simT.map(d=>'Yr'+d.t);
+  const fgpMap={vol:vr.fgp.V,dbh:vr.fgp.D,h:vr.fgp.H,ba:vr.fgp.D,mai:vr.fgp.V};
+  const fp=fgpMap[vKey];
+  if(lch) lch.destroy();
+  const fgpData=simT.map(d=>(d.t>=fp.t1&&d.t<=fp.t2)?d[vKey]:null);
+  lch=new Chart(document.getElementById('chC'),{type:'line',
+    data:{labels,datasets:[
+      {data:sim0.map(d=>d[vKey]),borderColor:'#888780',borderWidth:1.5,pointRadius:0,tension:.35,fill:false,label:'无间伐',order:3},
+      {data:simT.map(d=>d[vKey]),borderColor:'#185FA5',borderWidth:2.5,pointRadius:0,tension:.35,fill:false,label:'间伐',order:2},
+      {data:fgpData,borderColor:'transparent',backgroundColor:'rgba(52,168,83,.14)',borderWidth:0,pointRadius:0,fill:'origin',label:'速生期',tension:.35,order:4},
+      {data:simT.map((_,i)=>i===curYr-1?simT[i][vKey]:null),borderColor:'#E24B4A',borderWidth:0,pointRadius:simT.map((_,i)=>i===curYr-1?6:0),pointBackgroundColor:'#E24B4A',showLine:false,label:'当前',order:1},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{title:i=>i[0].label,label:i=>i.dataset.label+': '+i.parsed.y?.toFixed(1)}}},
+      scales:{x:{ticks:{autoSkip:true,maxTicksLimit:12,font:{size:10}},grid:{color:'rgba(128,128,128,.06)'}},
+              y:{ticks:{font:{size:10}},title:{display:true,text:ax[vKey],font:{size:10}}}}}
+  });
+}
+
+function updMetrics(){
+  const d=simT[curYr-1]||simT[simT.length-1];
+  document.getElementById('mRow').innerHTML=
+    [['密度 株/ha','N',''],['胸径','dbh','cm'],['树高','h','m'],['断面积','ba','m²/ha'],['蓄积量','vol','m³/ha']]
+    .map(([l,k,u])=>`<div class="mc"><p class="ml">${l}</p><p class="mv">${d[k]}<span style="font-size:10px;font-weight:400;color:#999;margin-left:3px;">${u}</span></p></div>`).join('');
+}
+
+function updVarInfo(){
+  const vr=getVar();
+  document.getElementById('varInfo').innerHTML=
+    `<p style="font-size:11px;color:#999;margin:0;">速生期 — 胸径Yr${vr.fgp.D.t1.toFixed(0)}–${vr.fgp.D.t2.toFixed(0)} | 树高Yr${vr.fgp.H.t1.toFixed(0)}–${vr.fgp.H.t2.toFixed(0)} | 材积Yr${vr.fgp.V.t1.toFixed(0)}–${vr.fgp.V.t2.toFixed(0)}</p>`;
+}
+
+function goTo(yr){
+  curYr=Math.max(1,Math.min(yr,rotLen));
+  document.getElementById('yrSl').value=curYr;
+  document.getElementById('yrLb').textContent=curYr;
+  drawStand(curYr);updMetrics();drawChart();
+}
+function onSl(){if(running)stopPl();goTo(+document.getElementById('yrSl').value);}
+function togglePl(){running?stopPl():startPl();}
+function startPl(){
+  running=true;document.getElementById('btnPl').textContent='暂停';
+  if(curYr>=rotLen)curYr=1;
+  tmr=setInterval(()=>{curYr++;if(curYr>rotLen){stopPl();return;}goTo(curYr);},+document.getElementById('spd').value);
+}
+function stopPl(){running=false;clearInterval(tmr);document.getElementById('btnPl').textContent='Play';}
+function updSpd(){document.getElementById('oSpd').textContent=document.getElementById('spd').value;if(running){stopPl();startPl();}}
+function setVK(k){
+  vKey=k;
+  const map={vol:'gVol',dbh:'gDbh',h:'gH',ba:'gBa',mai:'gMai'};
+  Object.values(map).forEach(id=>document.getElementById(id).classList.remove('on'));
+  document.getElementById(map[k]).classList.add('on');
+  drawChart();
+}
+function renderThinUI(){
+  const div=document.getElementById('thinList');div.innerHTML='';
+  sched.forEach((ev,i)=>{
+    const d=document.createElement('div');d.className='tcard';
+    const hd=document.createElement('div');hd.style.cssText='display:flex;align-items:center;gap:7px;flex-wrap:wrap;';
+    hd.innerHTML=`<span style="font-size:12px;font-weight:500;">第${i+1}次间伐</span>
+      <span style="font-size:12px;color:#666;">年份</span>
+      <input type="number" min="1" max="${rotLen-1}" value="${ev.yr}"
+        style="width:50px;font-size:12px;padding:2px 6px;border:1px solid #ddd;border-radius:4px;"
+        oninput="updEvYr(${i},this.value)">
+      <span style="font-size:11px;color:#999;">${MODES[ev.mode].lb} · ${Math.round(MODES[ev.mode].f*100)}%</span>
+      ${sched.length>1?`<button onclick="delEv(${i})" style="font-size:11px;padding:2px 7px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;margin-left:auto;">删除</button>`:''}`;
+    d.appendChild(hd);
+    const mr=document.createElement('div');mr.className='mbtns';
+    MODES.forEach((m,mi)=>{
+      const b=document.createElement('button');b.className='mb'+(ev.mode===mi?' on':'');
+      b.textContent=m.sh;b.title=m.lb;
+      b.onclick=()=>{sched[i].mode=mi;mkThinSets();renderThinUI();goTo(curYr);};
+      mr.appendChild(b);
+    });
+    d.appendChild(mr);div.appendChild(d);
+  });
+}
+function addThin(){sched.push({yr:Math.min(rotLen-1,(sched[sched.length-1]?.yr||5)+5),mode:0});mkThinSets();renderThinUI();rebuild();}
+function delEv(i){sched.splice(i,1);mkThinSets();renderThinUI();rebuild();}
+function updEvYr(i,v){sched[i].yr=Math.max(1,Math.min(rotLen-1,parseInt(v)||1));mkThinSets();goTo(curYr);}
+function rebuild(){
+  if(running)stopPl();
+  const N0=+document.getElementById('N0').value,SI=+document.getElementById('SI').value;
+  rotLen=+document.getElementById('rot').value;
+  document.getElementById('oN0').textContent=N0;
+  document.getElementById('oSI').textContent=SI;
+  document.getElementById('oRot').textContent=rotLen;
+  document.getElementById('yrSl').max=rotLen;
+  if(curYr>rotLen)curYr=rotLen;
+  mkThinSets();
+  simT=runSim(N0,SI,sched,rotLen);
+  sim0=runSim(N0,SI,[],rotLen);
+  grd=mkGrid();renderThinUI();updVarInfo();setVK(vKey);goTo(curYr);
+}
+window.addEventListener('resize',()=>drawStand(curYr));
+rebuild();
+</script>
+</body>
+</html>
