@@ -75,13 +75,18 @@ function updVarInfo() {
 // ── 获取当前模型的"品种"对象（用于渲染和图表）──────────────────
 function getEffectiveVariety() {
   if (is3PG()) {
-    // 3-PG 模式下构造一个兼容的品种对象
+    // 根据实际 3-PG 模拟结果动态设定渲染参数
+    const last = S.simT[S.simT.length - 1];
+    const hK = last ? last.h * 1.15 : 22;
+    const dK = last ? last.dbh * 1.15 : 23;
+    const rotLen = S.rotLen;
+    const fgpEnd = Math.min(rotLen, Math.max(3, Math.round(rotLen * 0.4)));
     return {
       name: '三倍体毛白杨 B301',
-      H: { a: 1.48, b: 0.37, K: 21.95 },
-      D: { a: 1.73, b: 0.56, K: 22.76 },
+      H: { a: 1.48, b: 0.37, K: hK },
+      D: { a: 1.73, b: 0.56, K: dK },
       V: { a: 3.64, b: 0.53, K: 0.43 },
-      fgp: { D: { t1: 1, t2: 5 }, H: { t1: 1, t2: 5 }, V: { t1: 2, t2: 5 } },
+      fgp: { D: { t1: 1, t2: fgpEnd }, H: { t1: 1, t2: fgpEnd }, V: { t1: 2, t2: fgpEnd } },
     };
   }
   return getVariety();
@@ -152,6 +157,9 @@ function onModelChange() {
   } else {
     logP.style.display = '';
     pgP.style.display  = 'none';
+    // 恢复 Logistic 模式的轮伐期范围
+    document.getElementById('rot').min = 3;
+    document.getElementById('rot').max = 30;
   }
   rebuild();
 }
@@ -169,6 +177,18 @@ function applyUseTypeDefaults() {
   document.getElementById('oFR').textContent = ut.defaultFR;
   document.getElementById('irrigAnn').value = ut.defaultIrr;
   document.getElementById('oIrrig').textContent = ut.defaultIrr;
+
+  // 间伐年份超出新轮伐期时修正
+  clampThinSchedule(ut.defaultRot);
+}
+
+/** 将间伐方案中超出轮伐期的年份钳制到合法范围 */
+function clampThinSchedule(rotLen) {
+  S.sched = S.sched.filter(e => e.yr < rotLen);
+  if (S.sched.length === 0) {
+    S.sched.push({ yr: Math.max(1, Math.floor(rotLen / 2)), mode: 0 });
+  }
+  S.sched.forEach(e => { e.yr = Math.min(e.yr, rotLen - 1); });
 }
 
 // ── 气候数据表格渲染 ──────────────────────────────────────────────
