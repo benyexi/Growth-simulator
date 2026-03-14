@@ -11,30 +11,108 @@
 
   <!-- 标题栏 -->
   <div style="background:#f0f0ec;border-radius:8px;padding:10px 14px;margin-bottom:1rem;">
-    <p style="font-size:12px;font-weight:500;margin:0 0 3px;">毛白杨人工林生长模拟器（姜岳忠2006博士论文参数）</p>
+    <p style="font-size:12px;font-weight:500;margin:0 0 3px;">毛白杨人工林生长模拟器</p>
     <p style="font-size:10px;color:#888;margin:0;line-height:1.7;">
-      生长模型：Logistic（速生期）+ 线性慢速生长（后期），参数来自表4-2-5 | 速生期标注：表4-2-6 | 树冠形态：表4-4-7（枝角77°，层距1.7m，冠高比0.20）
+      Logistic 经验模型（姜岳忠2006参数）| 3-PG 过程模型（张萱2023参数化）| 等轴测林分可视化
     </p>
   </div>
 
-  <!-- 品种与立地 -->
-  <p class="sec" style="margin-top:0;">品种与立地</p>
+  <!-- ═══ 生长模型选择 ═══ -->
+  <p class="sec" style="margin-top:0;">生长模型</p>
+  <div class="cr">
+    <span class="cl">模型类型</span>
+    <select id="modelType" style="flex:1;font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;">
+      <option value="logistic">Logistic 经验模型</option>
+      <option value="3pg">3-PG 过程模型 (Landsberg & Waring)</option>
+    </select>
+  </div>
+
+  <!-- ═══ Logistic 专用面板 ═══ -->
+  <div id="logisticPanel">
+    <p class="sec">品种与立地</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;">
+      <div>
+        <div class="cr">
+          <span class="cl">品种</span>
+          <select id="variety" style="flex:1;font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;">
+            <option value="0">易县毛白杨</option>
+            <option value="1">鲁毛50</option>
+            <option value="2">细皮毛白杨</option>
+            <option value="3">南×毛新</option>
+          </select>
+        </div>
+        <div class="cr">
+          <span class="cl">立地指数 SI (m,20yr)</span>
+          <input type="range" min="8" max="20" step="2" value="16" id="SI" style="flex:1;">
+          <span class="cv" id="oSI">16</span>
+        </div>
+      </div>
+      <div></div>
+    </div>
+  </div>
+
+  <!-- ═══ 3-PG 专用面板 ═══ -->
+  <div id="threePGPanel" style="display:none;">
+    <p class="sec">3-PG 参数</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;">
+      <div>
+        <div class="cr">
+          <span class="cl">用途</span>
+          <select id="useType" style="flex:1;font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;">
+            <option value="pulp">纸浆林 (短轮伐)</option>
+            <option value="saw">锯材林 (长轮伐)</option>
+          </select>
+        </div>
+        <div class="cr">
+          <span class="cl">土壤肥力 FR (0-1)</span>
+          <input type="range" min="0" max="1" step="0.1" value="0.7" id="FR" style="flex:1;">
+          <span class="cv" id="oFR">0.7</span>
+        </div>
+        <div class="cr">
+          <span class="cl">CO2 浓度 (ppm)</span>
+          <input type="range" min="280" max="800" step="10" value="420" id="co2" style="flex:1;">
+          <span class="cv" id="oCO2">420</span>
+        </div>
+      </div>
+      <div>
+        <div class="cr">
+          <span class="cl">最大有效土壤水 (mm)</span>
+          <input type="range" min="50" max="300" step="10" value="120" id="maxASW" style="flex:1;">
+          <span class="cv" id="oMaxASW">120</span>
+        </div>
+        <div class="cr">
+          <span class="cl">年灌溉量 (mm)</span>
+          <input type="range" min="0" max="600" step="20" value="0" id="irrigAnn" style="flex:1;">
+          <span class="cv" id="oIrrig">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 气候数据 -->
+    <details style="margin-top:6px;">
+      <summary style="font-size:12px;color:#666;cursor:pointer;user-select:none;">
+        气候数据（华北平原·高唐站 默认值，点击展开编辑）
+      </summary>
+      <div style="margin-top:6px;overflow-x:auto;">
+        <table class="clim-table">
+          <thead>
+            <tr>
+              <th>月份</th><th>最高温°C</th><th>最低温°C</th><th>降水mm</th><th>辐射MJ/m²/d</th>
+            </tr>
+          </thead>
+          <tbody id="climateBody"></tbody>
+        </table>
+        <button id="resetClimate" style="font-size:11px;padding:3px 10px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;margin-top:4px;">
+          重置为默认值
+        </button>
+      </div>
+    </details>
+  </div>
+
+  <!-- ═══ 共享控件 ═══ -->
+  <p class="sec">林分参数</p>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;">
     <div>
-      <div class="cr">
-        <span class="cl">品种</span>
-        <select id="variety" style="flex:1;font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:#fff;">
-          <option value="0">易县毛白杨</option>
-          <option value="1">鲁毛50</option>
-          <option value="2">细皮毛白杨</option>
-          <option value="3">南×毛新</option>
-        </select>
-      </div>
-      <div class="cr">
-        <span class="cl">立地指数 SI (m,20yr)</span>
-        <input type="range" min="8" max="20" step="2" value="16" id="SI" style="flex:1;">
-        <span class="cv" id="oSI">16</span>
-      </div>
       <div class="cr">
         <span class="cl">初植密度 (株/ha)</span>
         <input type="range" min="300" max="2500" step="100" value="833" id="N0" style="flex:1;">
@@ -44,7 +122,7 @@
     <div>
       <div class="cr">
         <span class="cl">轮伐期 (yr)</span>
-        <input type="range" min="12" max="30" step="1" value="20" id="rot" style="flex:1;">
+        <input type="range" min="3" max="30" step="1" value="20" id="rot" style="flex:1;">
         <span class="cv" id="oRot">20</span>
       </div>
       <div class="cr">
@@ -52,9 +130,9 @@
         <input type="range" min="200" max="1400" step="100" value="700" id="spd" style="flex:1;">
         <span class="cv" id="oSpd">700</span>
       </div>
-      <div id="varInfo" style="margin-top:2px;"></div>
     </div>
   </div>
+  <div id="varInfo" style="margin-top:2px;"></div>
 
   <!-- 间伐方案 -->
   <p class="sec">间伐方案</p>

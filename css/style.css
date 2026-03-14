@@ -24,5 +24,11 @@ body { font-family: sans-serif; background: #f5f4f0; padding: 1rem; }
 .gtab { font-size: 12px; padding: 4px 10px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; background: #fff; }
 .gtab.on { background: #e8f0fe; color: #1a73e8; }
 
+/* Climate data table */
+.clim-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.clim-table th { background: #f5f4f0; padding: 4px 6px; text-align: center; font-weight: 500; color: #666; border: 1px solid #e0e0e0; }
+.clim-table td { padding: 2px 4px; text-align: center; border: 1px solid #e0e0e0; }
+.clim-table .clim-input { width: 54px; font-size: 11px; text-align: center; border: 1px solid #ddd; border-radius: 3px; padding: 2px 3px; }
+
 /* Page wrapper */
 .wrap { max-width: 900px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 1.5rem; }
