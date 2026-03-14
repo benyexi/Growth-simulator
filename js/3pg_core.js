@@ -80,9 +80,9 @@ function fCO2alpha(co2, fCalpha700) {
   return fCalpha700 * co2 / (350 * (fCalpha700 - 1) + co2);
 }
 
-/** CO2 修正 — 冠层导度（论文公式 3-11）*/
+/** CO2 修正 — 冠层导度（Sands 2004 公式 7）*/
 function fCO2conductance(co2, fCg700) {
-  return fCg700 / (1 + (fCg700 - 1) * co2 / (2 * fCg700 - 1) / 350);
+  return fCg700 / (2 * fCg700 - 1 + (1 - fCg700) * co2 / 350);
 }
 
 // ── Penman-Monteith 蒸腾计算 ──────────────────────────────────────
@@ -329,13 +329,17 @@ export function runSim3PG(config) {
       ASW = ASW + precip_net + irr - transp - esoil;
       ASW = Math.max(0, Math.min(maxASW, ASW));
 
-      // ── 自疏检测 ──
+      // ── 自疏检测（3/2 幂法则）──
       if (N > 0 && WS > 0) {
         const avWS_kg = WS / N * 1000;
         const wSx = md.wSx1000 * Math.pow(1000 / N, md.thinPower);
         if (avWS_kg > wSx) {
-          // 降密度使单株生物量回到阈值以下
-          const N_new = Math.max(1, Math.round(1000 * Math.pow(WS * 1000 / md.wSx1000, 1 / (1 + md.thinPower))));
+          // 求 N_new 使 WS*1000/N_new = wSx1000*(1000/N_new)^thinPower
+          const WS_kg_ha = WS * 1000;
+          const N_new = Math.max(1, Math.round(
+            Math.pow(WS_kg_ha / (md.wSx1000 * Math.pow(1000, md.thinPower)),
+                     1 / (1 - md.thinPower))
+          ));
           if (N_new < N) {
             const frac = N_new / N;
             WF *= frac;
